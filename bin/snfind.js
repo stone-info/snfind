@@ -16,6 +16,7 @@ program
   .option('-d --directory [directory]', 'only search directory')
   .option('-n --fname [fname]', 'find name')
   .option('-e --exclude [exclude]', 'exclude directory')
+  .option('-h --hidden [hidden]', 'include hidden file')
 
 program.parse(process.argv)
 
@@ -59,9 +60,13 @@ function showDirectoryPath (filePath, fileName, findName) {
   }
 }
 
-async function fileReadWithRecursion (directoryPath, showDir = true, showFile = true, findName = '', exclude = '') {
+async function fileReadWithRecursion (directoryPath, showDir = true, showFile = true, findName = '', exclude = '', hidden = false) {
 
   let files = await readdir(directoryPath)
+
+  if (!hidden) {
+    files = files.filter(item => !item.startsWith('.'))
+  }
 
   for (let i = 0; i < files.length; ++i) {
 
@@ -98,7 +103,7 @@ async function fileReadWithRecursion (directoryPath, showDir = true, showFile = 
         }
       }
 
-      await fileReadWithRecursion(filePath, showDir, showFile, findName, exclude)
+      await fileReadWithRecursion(filePath, showDir, showFile, findName, exclude, hidden)
     }
   }
 }
@@ -112,7 +117,7 @@ async function fileReadWithRecursion (directoryPath, showDir = true, showFile = 
   // console.log(program.exclude)
 
   try {
-    await fileReadWithRecursion(dPath, !!program.directory, !!program.file, (program.fname ? program.fname : ''), (program.exclude ? program.exclude : ''))
+    await fileReadWithRecursion(dPath, !!program.directory, !!program.file, (program.fname ? program.fname : ''), (program.exclude ? program.exclude : ''), !!program.hidden)
   } catch (err) {
     console.log(`\x1b[31m${err.message}\x1b[0m`)
   }
