@@ -7,6 +7,8 @@
 -d only search directory
 -n find filename or directory name
 -e exclude directory
+-h include hidden file
+
 ```
 
 example:
