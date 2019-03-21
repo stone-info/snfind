@@ -1,5 +1,6 @@
 #! /usr/bin/env node
-
+const cp      = require('child_process')
+const os      = require('os')
 const program = require('commander')
 const colors  = require('colors/safe')
 const chalk   = require('chalk')
@@ -20,90 +21,59 @@ program
 
 program.parse(process.argv)
 
-function showFilePath (filePath, fileName, findName) {
-  if (findName === '') {
-    console.log(filePath)
-  } else {
-    if (new RegExp(findName, 'img').test(fileName)) {
-      // console.log(filePath)
+function cpuCount () {return os.cpus().length}
 
-      let match = fileName.match(new RegExp(findName, 'img'))[0]
-
-      let nFilePath = filePath.substring(0, filePath.lastIndexOf(fileName))
-      let nFileName = fileName.replace(match, chalk.red(match))
-
-      console.log(nFilePath + nFileName)
-
-      // console.log(filePath.replace(match, chalk.red(match)))
-    }
-  }
-}
-
-function showDirectoryPath (filePath, fileName, findName) {
-  if (findName === '') {
-
-    console.log(chalk.blue.bold(filePath))
-
-  } else {
-
-    if (new RegExp(findName, 'img').test(fileName)) {
-      // console.log(chalk.blue.bold(filePath))
-      let match = fileName.match(new RegExp(findName, 'img'))[0]
-
-      let nFilePath = filePath.substring(0, filePath.lastIndexOf(fileName))
-      let nFileName = fileName.replace(match, chalk.red(match))
-
-      console.log(chalk.blue.bold(nFilePath + nFileName))
-
-      // console.log(chalk.blue.bold(filePath.replace(match, chalk.red(match))))
-    }
-  }
-}
-
-async function fileReadWithRecursion (directoryPath, showDir = true, showFile = true, findName = '', exclude = '', hidden = false) {
+async function start (directoryPath, showDir = true, showFile = true, findName = '', exclude = '', hidden = false) {
 
   let files = await readdir(directoryPath)
 
-  if (!hidden) {
-    files = files.filter(item => !item.startsWith('.'))
-  }
+  if (!hidden) {files = files.filter(item => !item.startsWith('.'))}
 
-  for (let i = 0; i < files.length; ++i) {
+  let numCpus
 
-    let fileName = files[i]
+  if (cpuCount() > files.length) {numCpus = files.length} else {numCpus = cpuCount()}
 
-    let filePath = path.join(directoryPath, fileName)
+  let count = cpuCount() > files.length ? files.length : cpuCount()
 
-    let stats = await stat(filePath)
+  for (let i = 0; i < count; i++) {
+    let file     = files.shift()
 
-    let isFile = stats.isFile()
-    let isDir  = stats.isDirectory()
+    let name     = `subProcess${i}---`
 
-    if (isFile) {
-      if (showFile) {
-        showFilePath(filePath, fileName, findName)
-      } else {
-        if (!showDir) {
-          showFilePath(filePath, fileName, findName)
+    const script = path.resolve(__dirname, './worker.js')
+    const child  = cp.fork(script, [name])
+
+    child.on('error', err => {console.log(`\x1b[41m${err}\x1b[0m`)})
+
+    child.on('exit', async code => {
+      if (code === 0) {
+        // console.log(`\x1b[42m子进程 ${name} 正常退出...\x1b[0m`)
+        numCpus--
+        if (numCpus === 0) {
+          // console.log(`\x1b[32m${'我是最后一个退出的'}\x1b[0m`)
         }
-      }
-    }
-    if (isDir) {
-
-      if (exclude !== '') {
-        let excludePaths = exclude.split('|').filter(item => item !== '')
-        if (excludePaths.includes(fileName)) {continue}
-      }
-
-      if (showDir) {
-        showDirectoryPath(filePath, fileName, findName)
       } else {
-        if (!showFile) {
-          showDirectoryPath(filePath, fileName, findName)
-        }
+        console.log(`\x1b[41m子进程 ${name} 非正常退出...\x1b[0m`)
       }
+    })
 
-      await fileReadWithRecursion(filePath, showDir, showFile, findName, exclude, hidden)
+    child.on('message', msg => {
+      if (msg.data.ok === true) {
+        if (files.length > 0) {
+          let file = files.shift()
+          child.send({ data: { file, directoryPath, showDir, showFile, findName, exclude, hidden } })
+        } else {
+          child.send('exit')
+        }
+      } else {
+
+      }
+    })
+
+    if (file) {
+      child.send({ data: { file, directoryPath, showDir, showFile, findName, exclude, hidden } })
+    } else {
+      child.send('exit')
     }
   }
 }
@@ -117,7 +87,15 @@ async function fileReadWithRecursion (directoryPath, showDir = true, showFile = 
   // console.log(program.exclude)
 
   try {
-    await fileReadWithRecursion(dPath, !!program.directory, !!program.file, (program.fname ? program.fname : ''), (program.exclude ? program.exclude : ''), !!program.hidden)
+    // await fileReadWithRecursion(dPath, !!program.directory, !!program.file, (program.fname ? program.fname : ''), (program.exclude ? program.exclude : ''), !!program.hidden)
+    await start(
+      dPath,
+      !!program.directory,
+      !!program.file,
+      (program.fname ? program.fname : ''),
+      (program.exclude ? program.exclude : ''),
+      !!program.hidden,
+    )
   } catch (err) {
     console.log(`\x1b[31m${err.message}\x1b[0m`)
   }
