@@ -23,7 +23,7 @@ fs.readFile(p, 'utf-8', function (err, data) {
 
         const spinner = ora('publish and global install ...').start()
 
-        execa.shell('npm publish && npm i -g sn-cli').then(({ stdout }) => {
+        execa.shell('npm publish && npm i -g snfind').then(({ stdout }) => {
 
           console.log(stdout)
           spinner.succeed('succeed')
