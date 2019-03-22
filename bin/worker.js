@@ -119,7 +119,13 @@ async function worke ({
     let isDir  = stats.isDirectory()
 
     if (isFile) {
-      showFilePath(filePath, file, findName)
+      if (showFile) {
+        showFilePath(filePath, file, findName)
+      } else {
+        if (!showDir) {
+          showFilePath(filePath, file, findName)
+        }
+      }
     }
 
     if (isDir) {

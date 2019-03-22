@@ -1,6 +1,6 @@
 {
   "name": "snfind",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "snfind",
   "main": "index.js",
   "bin": {
