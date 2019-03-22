@@ -71,6 +71,7 @@ async function start (directoryPath, showDir = true, showFile = true, findName =
     })
 
     if (file) {
+
       child.send({ data: { file, directoryPath, showDir, showFile, findName, exclude, hidden } })
     } else {
       child.send('exit')
@@ -85,6 +86,7 @@ async function start (directoryPath, showDir = true, showFile = true, findName =
   // console.log(program.file)
   // console.log(program.fname)
   // console.log(program.exclude)
+
 
   try {
     // await fileReadWithRecursion(dPath, !!program.directory, !!program.file, (program.fname ? program.fname : ''), (program.exclude ? program.exclude : ''), !!program.hidden)

@@ -129,7 +129,24 @@ async function worke ({
     }
 
     if (isDir) {
+
+      if (exclude !== '') {
+        let excludePaths = exclude.split('|').filter(item => item !== '')
+        if (excludePaths.includes(file)) {
+          return
+        }
+      }
+
+      if (showDir) {
+        showDirectoryPath(filePath, file, findName)
+      } else {
+        if (!showFile) {
+          showDirectoryPath(filePath, file, findName)
+        }
+      }
       await fileReadWithRecursion(filePath, showDir, showFile, findName, exclude, hidden)
+
+      // await fileReadWithRecursion(filePath, showDir, showFile, findName, exclude, hidden)
     }
   } catch (err) {
     // console.log('link file', filePath)
