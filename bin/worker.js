@@ -132,9 +132,7 @@ async function worke ({
 
       if (exclude !== '') {
         let excludePaths = exclude.split('|').filter(item => item !== '')
-        if (excludePaths.includes(file)) {
-          return
-        }
+        if (excludePaths.includes(file)) {return}
       }
 
       if (showDir) {

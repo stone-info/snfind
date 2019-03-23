@@ -14,6 +14,7 @@ const path    = require('path')
 program
   .version('0.1.0')
   .option('-f --file [file]', 'only search file')
+  .option('-r --recursion [recursion]', 'recursion default true')
   .option('-d --directory [directory]', 'only search directory')
   .option('-n --fname [fname]', 'find name')
   .option('-e --exclude [exclude]', 'exclude directory')
@@ -21,13 +22,90 @@ program
 
 program.parse(process.argv)
 
+function showFilePath (filePath, fileName, findName) {
+  if (findName === '') {
+    console.log(filePath)
+  } else {
+    if (new RegExp(findName, 'img').test(fileName)) {
+      // console.log(filePath)
+
+      let match = fileName.match(new RegExp(findName, 'img'))[0]
+
+      let nFilePath = filePath.substring(0, filePath.lastIndexOf(fileName))
+      let nFileName = fileName.replace(match, chalk.red(match))
+
+      console.log(nFilePath + nFileName)
+
+      // console.log(filePath.replace(match, chalk.red(match)))
+    }
+  }
+}
+
+function showDirectoryPath (filePath, fileName, findName) {
+  if (findName === '') {
+
+    console.log(chalk.blue.bold(filePath))
+
+  } else {
+
+    if (new RegExp(findName, 'img').test(fileName)) {
+      // console.log(chalk.blue.bold(filePath))
+      let match = fileName.match(new RegExp(findName, 'img'))[0]
+
+      let nFilePath = filePath.substring(0, filePath.lastIndexOf(fileName))
+      let nFileName = fileName.replace(match, chalk.red(match))
+
+      console.log(chalk.blue.bold(nFilePath + nFileName))
+
+      // console.log(chalk.blue.bold(filePath.replace(match, chalk.red(match))))
+    }
+  }
+}
+
 function cpuCount () {return os.cpus().length}
 
-async function start (directoryPath, showDir = true, showFile = true, findName = '', exclude = '', hidden = false) {
+async function recursionOFF (files, directoryPath, showFile, findName, showDir, exclude) {
+  for (let i = 0; i < files.length; ++i) {
 
-  let files = await readdir(directoryPath)
+    let fileName = files[i]
 
-  if (!hidden) {files = files.filter(item => !item.startsWith('.'))}
+    let filePath = path.join(directoryPath, fileName)
+
+    let stats
+
+    try {stats = await stat(filePath)} catch (err) {continue}
+
+    let isFile = stats.isFile()
+
+    let isDir = stats.isDirectory()
+
+    if (isFile) {
+      if (showFile) {
+        showFilePath(filePath, fileName, findName)
+      } else {
+        if (!showDir) {
+          showFilePath(filePath, fileName, findName)
+        }
+      }
+    }
+    if (isDir) {
+      if (exclude !== '') {
+        let excludePaths = exclude.split('|').filter(item => item !== '')
+        if (excludePaths.includes(fileName)) {continue}
+      }
+
+      if (showDir) {
+        showDirectoryPath(filePath, fileName, findName)
+      } else {
+        if (!showFile) {
+          showDirectoryPath(filePath, fileName, findName)
+        }
+      }
+    }
+  }
+}
+
+function recursionON (files, directoryPath, showDir, showFile, findName, exclude, hidden) {
 
   let numCpus
 
@@ -36,9 +114,9 @@ async function start (directoryPath, showDir = true, showFile = true, findName =
   let count = cpuCount() > files.length ? files.length : cpuCount()
 
   for (let i = 0; i < count; i++) {
-    let file     = files.shift()
+    let file = files.shift()
 
-    let name     = `subProcess${i}---`
+    let name = `subProcess${i}---`
 
     const script = path.resolve(__dirname, './worker.js')
     const child  = cp.fork(script, [name])
@@ -66,16 +144,30 @@ async function start (directoryPath, showDir = true, showFile = true, findName =
           child.send('exit')
         }
       } else {
-
+        //
       }
     })
 
     if (file) {
-
       child.send({ data: { file, directoryPath, showDir, showFile, findName, exclude, hidden } })
     } else {
       child.send('exit')
     }
+  }
+}
+
+async function start (directoryPath, showDir = true, showFile = true, findName = '', exclude = '', hidden = false, recursion = true) {
+
+  let files = await readdir(directoryPath)
+
+  if (!hidden) {files = files.filter(item => !item.startsWith('.'))}
+
+  if (recursion === false) {
+    // 递归关闭
+    await recursionOFF(files, directoryPath, showFile, findName, showDir, exclude)
+  } else {
+    // 递归开启
+    recursionON(files, directoryPath, showDir, showFile, findName, exclude, hidden)
   }
 }
 
@@ -87,7 +179,6 @@ async function start (directoryPath, showDir = true, showFile = true, findName =
   // console.log(program.fname)
   // console.log(program.exclude)
 
-
   try {
     // await fileReadWithRecursion(dPath, !!program.directory, !!program.file, (program.fname ? program.fname : ''), (program.exclude ? program.exclude : ''), !!program.hidden)
     await start(
@@ -97,6 +188,7 @@ async function start (directoryPath, showDir = true, showFile = true, findName =
       (program.fname ? program.fname : ''),
       (program.exclude ? program.exclude : ''),
       !!program.hidden,
+      (program.recursion ? program.recursion === 'true' : true),
     )
   } catch (err) {
     console.log(`\x1b[31m${err.message}\x1b[0m`)
